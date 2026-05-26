@@ -10,23 +10,23 @@ import (
 )
 
 type AffiliateLevel struct {
-	Key                              string  `json:"key"`
-	Name                             string  `json:"name"`
-	MinEffectiveInvites              int     `json:"min_effective_invites"`
-	MinTotalRewardQuota              int     `json:"min_total_reward_quota"`
-	InviteeFirstTopupBonusPercent    float64 `json:"invitee_first_topup_bonus_percent"`
-	InviterFirstCommissionPercent    float64 `json:"inviter_first_commission_percent"`
-	LifetimeCommissionEnabled        bool    `json:"lifetime_commission_enabled"`
-	LifetimeCommissionPercent        float64 `json:"lifetime_commission_percent"`
+	Key                           string  `json:"key"`
+	Name                          string  `json:"name"`
+	MinEffectiveInvites           int     `json:"min_effective_invites"`
+	MinTotalRewardQuota           int     `json:"min_total_reward_quota"`
+	InviteeFirstTopupBonusPercent float64 `json:"invitee_first_topup_bonus_percent"`
+	InviterFirstCommissionPercent float64 `json:"inviter_first_commission_percent"`
+	LifetimeCommissionEnabled     bool    `json:"lifetime_commission_enabled"`
+	LifetimeCommissionPercent     float64 `json:"lifetime_commission_percent"`
 }
 
 type AffiliateSetting struct {
-	Enabled                       bool             `json:"enabled"`
-	RegistrationRewardEnabled     bool             `json:"registration_reward_enabled"`
-	SettleToAffQuota              bool             `json:"settle_to_aff_quota"`
-	MinRewardBaseQuota            int              `json:"min_reward_base_quota"`
-	FirstCommissionWindowDays     int              `json:"first_commission_window_days"`
-	Levels                        []AffiliateLevel `json:"levels"`
+	Enabled                   bool             `json:"enabled"`
+	RegistrationRewardEnabled bool             `json:"registration_reward_enabled"`
+	SettleToAffQuota          bool             `json:"settle_to_aff_quota"`
+	MinRewardBaseQuota        int              `json:"min_reward_base_quota"`
+	FirstCommissionWindowDays int              `json:"first_commission_window_days"`
+	Levels                    []AffiliateLevel `json:"levels"`
 }
 
 var defaultAffiliateLevels = []AffiliateLevel{
