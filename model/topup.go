@@ -111,7 +111,7 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		return errors.New("未提供支付单号")
 	}
 
-	var quota float64
+	var quotaToAdd int
 	topUp := &TopUp{}
 
 	refCol := "`trade_no`"
@@ -140,9 +140,12 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 			return err
 		}
 
-		quota = topUp.Money * common.QuotaPerUnit
-		err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(map[string]interface{}{"stripe_customer": customerId, "quota": gorm.Expr("quota + ?", quota)}).Error
+		quotaToAdd = int(decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart())
+		err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(map[string]interface{}{"stripe_customer": customerId, "quota": gorm.Expr("quota + ?", quotaToAdd)}).Error
 		if err != nil {
+			return err
+		}
+		if err := ApplyAffiliateRewardsTx(tx, topUp, quotaToAdd); err != nil {
 			return err
 		}
 
@@ -154,8 +157,74 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		return errors.New("充值失败，请稍后重试")
 	}
 
-	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(int(quota)), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentMethodStripe)
+	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(quotaToAdd), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentMethodStripe)
 
+	return nil
+}
+
+func RechargeEpay(tradeNo string, actualPaymentMethod string, callerIp string) error {
+	if tradeNo == "" {
+		return errors.New("missing trade no")
+	}
+
+	var userId int
+	var quotaToAdd int
+	var payMoney float64
+	var paymentMethod string
+	processed := false
+
+	refCol := "`trade_no`"
+	if common.UsingPostgreSQL {
+		refCol = `"trade_no"`
+	}
+
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		topUp := &TopUp{}
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").Where(refCol+" = ?", tradeNo).First(topUp).Error; err != nil {
+			return ErrTopUpNotFound
+		}
+		if topUp.PaymentProvider != PaymentProviderEpay {
+			return ErrPaymentMethodMismatch
+		}
+		if topUp.Status == common.TopUpStatusSuccess {
+			return nil
+		}
+		if topUp.Status != common.TopUpStatusPending {
+			return ErrTopUpStatusInvalid
+		}
+		if actualPaymentMethod != "" && topUp.PaymentMethod != actualPaymentMethod {
+			topUp.PaymentMethod = actualPaymentMethod
+		}
+
+		quotaToAdd = int(decimal.NewFromInt(topUp.Amount).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart())
+		if quotaToAdd <= 0 {
+			return errors.New("invalid topup quota")
+		}
+
+		topUp.CompleteTime = common.GetTimestamp()
+		topUp.Status = common.TopUpStatusSuccess
+		if err := tx.Save(topUp).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", quotaToAdd)).Error; err != nil {
+			return err
+		}
+		if err := ApplyAffiliateRewardsTx(tx, topUp, quotaToAdd); err != nil {
+			return err
+		}
+
+		userId = topUp.UserId
+		payMoney = topUp.Money
+		paymentMethod = topUp.PaymentMethod
+		processed = true
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if processed {
+		RecordTopupLog(userId, fmt.Sprintf("Online top-up succeeded, quota: %v, paid: %f", logger.FormatQuota(quotaToAdd), payMoney), callerIp, paymentMethod, PaymentProviderEpay)
+	}
 	return nil
 }
 
@@ -374,6 +443,9 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", quotaToAdd)).Error; err != nil {
 			return err
 		}
+		if err := ApplyAffiliateRewardsTx(tx, topUp, quotaToAdd); err != nil {
+			return err
+		}
 
 		userId = topUp.UserId
 		payMoney = topUp.Money
@@ -450,6 +522,9 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 		if err != nil {
 			return err
 		}
+		if err := ApplyAffiliateRewardsTx(tx, topUp, int(quota)); err != nil {
+			return err
+		}
 
 		return nil
 	})
@@ -511,6 +586,9 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", quotaToAdd)).Error; err != nil {
 			return err
 		}
+		if err := ApplyAffiliateRewardsTx(tx, topUp, quotaToAdd); err != nil {
+			return err
+		}
 
 		return nil
 	})
@@ -570,6 +648,9 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 		}
 
 		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", quotaToAdd)).Error; err != nil {
+			return err
+		}
+		if err := ApplyAffiliateRewardsTx(tx, topUp, quotaToAdd); err != nil {
 			return err
 		}
 

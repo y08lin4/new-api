@@ -143,6 +143,23 @@ func UpdateOption(c *gin.Context) {
 			common.ApiErrorI18n(c, i18n.MsgPaymentComplianceRequired)
 			return
 		}
+	case "affiliate_setting.enabled", "affiliate_setting.registration_reward_enabled":
+		enabled, _ := strconv.ParseBool(strings.TrimSpace(option.Value.(string)))
+		if enabled && !operation_setting.IsPaymentComplianceConfirmed() {
+			common.ApiErrorI18n(c, i18n.MsgPaymentComplianceRequired)
+			return
+		}
+	case "affiliate_setting.levels":
+		if err := operation_setting.CheckAffiliateLevelsJSON(option.Value.(string)); err != nil {
+			common.ApiErrorMsg(c, "invalid affiliate levels: "+err.Error())
+			return
+		}
+	case "affiliate_setting.min_reward_base_quota", "affiliate_setting.first_commission_window_days":
+		intValue, err := strconv.Atoi(strings.TrimSpace(option.Value.(string)))
+		if err != nil || intValue < 0 {
+			common.ApiErrorMsg(c, "affiliate numeric setting must be a non-negative integer")
+			return
+		}
 	default:
 		if isPaymentComplianceOptionKey(option.Key) {
 			common.ApiErrorMsg(c, "合规确认字段不允许通过通用设置接口修改")

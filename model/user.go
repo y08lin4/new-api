@@ -46,6 +46,7 @@ type User struct {
 	AffQuota         int            `json:"aff_quota" gorm:"type:int;default:0;column:aff_quota"`           // 邀请剩余额度
 	AffHistoryQuota  int            `json:"aff_history_quota" gorm:"type:int;default:0;column:aff_history"` // 邀请历史额度
 	InviterId        int            `json:"inviter_id" gorm:"type:int;column:inviter_id;index"`
+	AffLevelKey      string         `json:"aff_level_key,omitempty" gorm:"-"`
 	DeletedAt        gorm.DeletedAt `gorm:"index"`
 	LinuxDOId        string         `json:"linux_do_id" gorm:"column:linux_do_id;index"`
 	Setting          string         `json:"setting" gorm:"type:text;column:setting"`
@@ -216,6 +217,10 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 		tx.Rollback()
 		return nil, 0, err
 	}
+	if err = attachAffiliateLevelKeysTx(tx, users); err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
 
 	// Commit transaction
 	if err = tx.Commit().Error; err != nil {
@@ -280,6 +285,10 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 		tx.Rollback()
 		return nil, 0, err
 	}
+	if err = attachAffiliateLevelKeysTx(tx, users); err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
 
 	// 提交事务
 	if err = tx.Commit().Error; err != nil {
@@ -287,6 +296,42 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 	}
 
 	return users, total, nil
+}
+
+func attachAffiliateLevelKeysTx(tx *gorm.DB, users []*User) error {
+	if len(users) == 0 {
+		return nil
+	}
+	userIds := make([]int, 0, len(users))
+	for _, user := range users {
+		if user != nil {
+			userIds = append(userIds, user.Id)
+		}
+	}
+	if len(userIds) == 0 {
+		return nil
+	}
+	var stats []AffiliateUserStat
+	if err := tx.Select("user_id", "level_key").Where("user_id IN ?", userIds).Find(&stats).Error; err != nil {
+		return err
+	}
+	levelByUserId := make(map[int]string, len(stats))
+	for _, stat := range stats {
+		if stat.LevelKey != "" {
+			levelByUserId[stat.UserId] = stat.LevelKey
+		}
+	}
+	defaultLevel := operation_setting.GetAffiliateDefaultLevel()
+	for _, user := range users {
+		if user == nil {
+			continue
+		}
+		user.AffLevelKey = defaultLevel.Key
+		if levelKey, ok := levelByUserId[user.Id]; ok {
+			user.AffLevelKey = levelKey
+		}
+	}
+	return nil
 }
 
 func GetUserById(id int, selectAll bool) (*User, error) {
@@ -326,17 +371,6 @@ func HardDeleteUserById(id int) error {
 	}
 	err := DB.Unscoped().Delete(&User{}, "id = ?", id).Error
 	return err
-}
-
-func inviteUser(inviterId int) (err error) {
-	user, err := GetUserById(inviterId, true)
-	if err != nil {
-		return err
-	}
-	user.AffCount++
-	user.AffQuota += common.QuotaForInviter
-	user.AffHistoryQuota += common.QuotaForInviter
-	return DB.Save(user).Error
 }
 
 func (user *User) TransferAffQuotaToQuota(quota int) error {
@@ -419,14 +453,14 @@ func (user *User) Insert(inviterId int) error {
 		RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", logger.LogQuota(common.QuotaForNewUser)))
 	}
 	if inviterId != 0 && operation_setting.IsPaymentComplianceConfirmed() {
-		if common.QuotaForInvitee > 0 {
-			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee, true)
-			RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", logger.LogQuota(common.QuotaForInvitee)))
-		}
-		if common.QuotaForInviter > 0 {
-			//_ = IncreaseUserQuota(inviterId, common.QuotaForInviter)
-			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
-			_ = inviteUser(inviterId)
+		_ = ApplyRegistrationAffiliateRewards(user.Id, inviterId)
+		if operation_setting.GetAffiliateSetting().RegistrationRewardEnabled {
+			if common.QuotaForInvitee > 0 {
+				RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码注册奖励 %s", logger.LogQuota(common.QuotaForInvitee)))
+			}
+			if common.QuotaForInviter > 0 {
+				RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户注册奖励 %s", logger.LogQuota(common.QuotaForInviter)))
+			}
 		}
 	}
 	return nil
@@ -480,13 +514,14 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 		RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", logger.LogQuota(common.QuotaForNewUser)))
 	}
 	if inviterId != 0 && operation_setting.IsPaymentComplianceConfirmed() {
-		if common.QuotaForInvitee > 0 {
-			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee, true)
-			RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", logger.LogQuota(common.QuotaForInvitee)))
-		}
-		if common.QuotaForInviter > 0 {
-			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
-			_ = inviteUser(inviterId)
+		_ = ApplyRegistrationAffiliateRewards(user.Id, inviterId)
+		if operation_setting.GetAffiliateSetting().RegistrationRewardEnabled {
+			if common.QuotaForInvitee > 0 {
+				RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码注册奖励 %s", logger.LogQuota(common.QuotaForInvitee)))
+			}
+			if common.QuotaForInviter > 0 {
+				RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户注册奖励 %s", logger.LogQuota(common.QuotaForInviter)))
+			}
 		}
 	}
 }

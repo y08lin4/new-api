@@ -94,6 +94,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/aff", controller.GetAffCode)
 				selfRoute.GET("/topup/info", controller.GetTopUpInfo)
 				selfRoute.GET("/topup/self", controller.GetUserTopUps)
+				selfRoute.GET("/self/affiliate/rewards", controller.GetSelfAffiliateRewards)
+				selfRoute.GET("/self/affiliate/stats", controller.GetSelfAffiliateStats)
 				selfRoute.POST("/topup", middleware.CriticalRateLimit(), controller.TopUp)
 				selfRoute.POST("/pay", middleware.CriticalRateLimit(), controller.RequestEpay)
 				selfRoute.POST("/amount", controller.RequestAmount)
@@ -144,6 +146,13 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.GET("/2fa/stats", controller.Admin2FAStats)
 				adminRoute.DELETE("/:id/2fa", controller.AdminDisable2FA)
 			}
+		}
+
+		affiliateRoute := apiRouter.Group("/affiliate")
+		affiliateRoute.Use(middleware.AdminAuth())
+		{
+			affiliateRoute.GET("/rewards", controller.GetAffiliateRewards)
+			affiliateRoute.GET("/stats", controller.GetAffiliateStats)
 		}
 
 		// Subscription billing (plans, purchase, admin management)
