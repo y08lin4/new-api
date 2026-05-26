@@ -1,11 +1,11 @@
 package operation_setting
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/config"
 )
 
@@ -127,7 +127,7 @@ func GetNextAffiliateLevel(levelKey string) *AffiliateLevel {
 
 func CheckAffiliateLevelsJSON(jsonStr string) error {
 	var levels []AffiliateLevel
-	if err := json.Unmarshal([]byte(jsonStr), &levels); err != nil {
+	if err := common.UnmarshalJsonStr(jsonStr, &levels); err != nil {
 		return err
 	}
 	return ValidateAffiliateLevels(levels)
