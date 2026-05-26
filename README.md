@@ -1,488 +1,205 @@
-<div align="center">
+# New API AFF 充值返佣改造分支
 
-![new-api](/web/default/public/logo.png)
+本分支用于维护 `new-api` 的 AFF 充值返佣和 AFFMan 等级改造。根目录 README 只记录本仓库、本分支和原仓库之间的关系，以及本地改造的核心差异；原项目完整介绍、部署方式和通用说明请以原仓库文档为准。
 
-# New API
+## 仓库关系
 
-🍥 **Next-Generation LLM Gateway and AI Asset Management System**
+- 原仓库：`https://github.com/QuantumNous/new-api`
+- 本仓库：`https://github.com/y08lin4/new-api`
+- 功能分支：`feature/aff-recharge-affman`
+- 详细差异文档：[`docs/affiliate-recharge-reward-diff.md`](./docs/affiliate-recharge-reward-diff.md)
 
-<p align="center">
-  <a href="./README.zh_CN.md">简体中文</a> |
-  <a href="./README.zh_TW.md">繁體中文</a> |
-  <strong>English</strong> |
-  <a href="./README.fr.md">Français</a> |
-  <a href="./README.ja.md">日本語</a>
-</p>
+## 本分支用途
 
-<p align="center">
-  <a href="https://raw.githubusercontent.com/Calcium-Ion/new-api/main/LICENSE">
-    <img src="https://img.shields.io/github/license/Calcium-Ion/new-api?color=brightgreen" alt="license">
-  </a><!--
-  --><a href="https://github.com/Calcium-Ion/new-api/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Calcium-Ion/new-api?color=brightgreen&include_prereleases" alt="release">
-  </a><!--
-  --><a href="https://hub.docker.com/r/CalciumIon/new-api">
-    <img src="https://img.shields.io/badge/docker-dockerHub-blue" alt="docker">
-  </a><!--
-  --><a href="https://goreportcard.com/report/github.com/Calcium-Ion/new-api">
-    <img src="https://goreportcard.com/badge/github.com/Calcium-Ion/new-api" alt="GoReportCard">
-  </a>
-</p>
+原仓库的 AFF 逻辑主要是“邀请注册即奖励”。本分支把主流程改成“注册绑定邀请关系，充值成功后结算返佣”，并保留注册即奖励能力，但新增独立开关，默认关闭。
 
-<p align="center">
-  <a href="https://trendshift.io/repositories/20180" target="_blank">
-    <img src="https://trendshift.io/api/badge/repositories/20180" alt="QuantumNous%2Fnew-api | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/>
-  </a>
-  <br>
-  <a href="https://hellogithub.com/repository/QuantumNous/new-api" target="_blank">
-    <img src="https://api.hellogithub.com/v1/widgets/recommend.svg?rid=539ac4217e69431684ad4a0bab768811&claim_uid=tbFPfKIDHpc4TzR" alt="Featured｜HelloGitHub" style="width: 250px; height: 54px;" width="250" height="54" />
-  </a><!--
-  --><a href="https://www.producthunt.com/products/new-api/launches/new-api?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-new-api" target="_blank" rel="noopener noreferrer">
-    <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1047693&theme=light&t=1769577875005" alt="New API - All-in-one AI asset management gateway. | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" />
-  </a>
-</p>
+本分支适合继续验证以下业务：
 
-<p align="center">
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-key-features">Key Features</a> •
-  <a href="#-deployment">Deployment</a> •
-  <a href="#-documentation">Documentation</a> •
-  <a href="#-help-support">Help</a>
-</p>
+- 被邀请人注册时只绑定邀请关系，不默认发固定奖励。
+- 被邀请人充值成功后，按邀请人当前 AFFMan 等级结算首充多送、首充返佣和长期返佣。
+- 邀请人根据有效邀请人数和累计充值返佣额度自动升级，等级只升不降。
+- 后续从原仓库同步更新时，以详细差异文档为准检查需要保留的本地改动。
 
-</div>
+## 原仓库 AFF 行为
 
-## 📝 Project Description
+原仓库 `QuantumNous/new-api` 的 AFF 逻辑以注册事件为主：
 
-> [!IMPORTANT]
-> - This project is intended solely for lawful and authorized AI API gateway, organization-level authentication, multi-model management, usage analytics, cost accounting, and private deployment scenarios.
-> - Users must lawfully obtain upstream API keys, accounts, model services, and interface permissions, and must comply with upstream terms of service and applicable laws and regulations.
-> - Users should ensure their use complies with upstream terms of service and applicable laws and regulations.
-> - When providing generative AI services to the public, users should comply with applicable regulatory requirements and fulfill all filing, licensing, content safety, real-name verification, log retention, tax, and upstream authorization obligations required by their jurisdiction.
+1. 新用户注册时可以携带邀请码。
+2. 后端根据邀请码找到邀请人，并写入新用户的 `inviter_id`。
+3. 注册完成后，如果满足支付合规声明条件：
+   - 被邀请人获得固定额度 `QuotaForInvitee`。
+   - 邀请人获得固定额度 `QuotaForInviter`。
+   - 邀请人的固定奖励进入 `aff_quota`，之后可以手动转入主余额。
+4. 用户钱包页展示邀请链接、邀请人数、邀请收益和转入余额入口。
+5. 管理端主要维护旧的固定注册邀请奖励额度。
 
----
+原仓库没有充值成功后返佣、首充多送、长期返佣、AFFMan 等级、返佣流水、管理员返佣流水视图和 AFFMan 统计视图。
 
-## 🤝 Trusted Partners
+## 本分支核心差异
 
-<p align="center">
-  <em>No particular order</em>
-</p>
+| 范围 | 原仓库 | 本分支 |
+| --- | --- | --- |
+| 注册行为 | 注册后发固定邀请奖励 | 注册时只绑定邀请关系，固定奖励由独立开关控制，默认关闭 |
+| 返佣触发 | 注册事件 | 充值成功事件 |
+| 被邀请人奖励 | 固定注册奖励 | 可按邀请人等级配置首充多送比例 |
+| 邀请人奖励 | 固定注册奖励 | 可配置首充返佣、首充窗口期高返和长期返佣 |
+| 返佣比例 | 固定额度 | 按邀请人当前 AFFMan 等级决定 |
+| 等级体系 | 无 | 按有效邀请人数和累计充值返佣额度自动升级 |
+| 流水记录 | 无独立返佣流水 | 新增 `affiliate_rewards` 返佣流水表 |
+| 用户统计 | 依赖用户表邀请字段 | 新增 `affiliate_user_stats` 统计表 |
+| 幂等处理 | 依赖充值订单状态 | 返佣流水唯一约束防止重复发奖 |
+| 管理视图 | 无返佣流水和等级统计 | 新增返佣流水、AFFMan 统计和等级配置界面 |
 
-<p align="center">
-  <a href="https://www.cherry-ai.com/" target="_blank">
-    <img src="./docs/images/cherry-studio.png" alt="Cherry Studio" height="80" />
-  </a><!--
-  --><a href="https://github.com/iOfficeAI/AionUi/" target="_blank">
-    <img src="./docs/images/aionui.png" alt="Aion UI" height="80" />
-  </a><!--
-  --><a href="https://bda.pku.edu.cn/" target="_blank">
-    <img src="./docs/images/pku.png" alt="Peking University" height="80" />
-  </a><!--
-  --><a href="https://www.compshare.cn/?ytag=GPU_yy_gh_newapi" target="_blank">
-    <img src="./docs/images/ucloud.png" alt="UCloud" height="80" />
-  </a><!--
-  --><a href="https://www.aliyun.com/" target="_blank">
-    <img src="./docs/images/aliyun.png" alt="Alibaba Cloud" height="80" />
-  </a><!--
-  --><a href="https://io.net/" target="_blank">
-    <img src="./docs/images/io-net.png" alt="IO.NET" height="80" />
-  </a>
-</p>
+## 已实现功能
 
----
+### 后端
 
-## 🙏 Special Thanks
+- 新增 `affiliate_setting` 配置结构：
+  - `enabled`
+  - `registration_reward_enabled`
+  - `settle_to_aff_quota`
+  - `min_reward_base_quota`
+  - `first_commission_window_days`
+  - `levels`
+- `levels` 使用 JSON 数组保存 AFFMan 等级配置。
+- 新增 `affiliate_rewards` 返佣流水表。
+- 新增 `affiliate_user_stats` 用户 AFFMan 统计表。
+- 注册固定奖励保留，但由 `registration_reward_enabled` 控制，默认关闭。
+- 充值成功后统一进入返佣结算。
+- 返佣基数只使用本次实际付费充值到账额度，不包含赠送额度和返佣额度。
+- 被邀请人首充多送、邀请人首充返佣、邀请人长期返佣均使用邀请人当前 AFFMan 等级比例。
+- 邀请人等级在本次返佣入账后刷新，升级只影响后续订单。
+- 通过返佣流水唯一约束避免重复回调或重复补单造成重复发奖。
 
-<p align="center">
-  <a href="https://www.jetbrains.com/?from=new-api" target="_blank">
-    <img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" alt="JetBrains Logo" width="120" />
-  </a>
-</p>
+### 接口
 
-<p align="center">
-  <strong>Thanks to <a href="https://www.jetbrains.com/?from=new-api">JetBrains</a> for providing free open-source development license for this project</strong>
-</p>
+- 扩展 `GET /api/user/topup/info`，新增 `affiliate_policy`。
+- 新增用户接口：
+  - `GET /api/user/self/affiliate/rewards`
+  - `GET /api/user/self/affiliate/stats`
+- 新增管理员接口：
+  - `GET /api/affiliate/rewards`
+  - `GET /api/affiliate/stats`
+- 配置仍走现有 `/api/option/`，`affiliate_setting.levels` 作为 JSON 字符串保存。
 
----
+### 默认前端
 
-## 🚀 Quick Start
+- 钱包邀请卡保留邀请链接、待转入、累计收益、邀请数和转入余额。
+- 新增 AFFMan 等级徽标、当前等级比例、下一等级进度。
+- 新增奖励明细入口，沿用现有表格和分页样式。
+- 系统设置的计费区域新增邀请返佣配置、等级编辑器、返佣流水和 AFFMan 统计。
+- 用户表邀请信息列补充 AFFMan 等级徽标。
 
-### Using Docker Compose (Recommended)
+### 经典前端
+
+- 邀请卡保持 Semi UI 卡片风格。
+- 新增 AFFMan 等级、升级进度和奖励明细按钮。
+- 奖励明细使用 Semi UI 弹窗和表格展示。
+- 设置页新增 AFF 充值返佣配置区。
+- 用户表邀请信息列补充 AFFMan 等级展示。
+
+### 多语言和测试
+
+- 补充默认前端 `en`、`zh`、`fr`、`ja`、`ru`、`vi` 的 AFF 返佣相关文案。
+- 新增后端返佣等级规则测试。
+- 已补充同步差异文档，便于后续从原仓库拉取更新时对照处理。
+
+## 关键业务规则
+
+### 注册固定奖励
+
+- 保留 `QuotaForInviter` 和 `QuotaForInvitee`。
+- 默认不发放注册固定奖励。
+- 开启 `affiliate_setting.registration_reward_enabled` 后才发放。
+- 注册固定奖励写入返佣流水，但不参与 AFFMan 等级统计。
+- 注册固定奖励不受 AFFMan 等级比例影响。
+
+### 充值返佣
+
+- 只在充值订单成功后结算。
+- 邀请关系来自被邀请用户的 `inviter_id`。
+- 没有邀请人、邀请人不存在、邀请人被禁用或邀请人为本人时跳过返佣。
+- 同一订单重复回调或重复补单不会重复发奖。
+- 本次订单使用结算前的邀请人等级。
+- 本次奖励入账后再刷新邀请人统计并判断是否升级。
+
+### AFFMan 等级
+
+- 等级配置保存在 `affiliate_setting.levels`。
+- 等级按门槛升序配置。
+- 升级需要同时满足有效邀请人数和累计充值返佣额度。
+- 有效邀请人数按产生过成功充值返佣流水的 `invitee_id` 去重统计。
+- 累计充值返佣只统计邀请人作为 `beneficiary_id` 获得的充值返佣。
+- 等级自动升级，只升不降。
+
+## 主要改动范围
+
+详细文件清单和差异说明见 [`docs/affiliate-recharge-reward-diff.md`](./docs/affiliate-recharge-reward-diff.md)。核心范围包括：
+
+- `setting/operation_setting/affiliate_setting.go`
+- `model/affiliate.go`
+- `model/topup.go`
+- `model/user.go`
+- `controller/affiliate.go`
+- `controller/topup.go`
+- `controller/option.go`
+- `router/api-router.go`
+- `web/default/src/features/wallet`
+- `web/default/src/features/system-settings`
+- `web/default/src/features/users`
+- `web/classic/src/components/topup`
+- `web/classic/src/pages/Setting/Operation`
+- `web/classic/src/components/table/users`
+- `web/default/src/i18n/locales`
+- `model/affiliate_test.go`
+
+## 本地运行
+
+后端和前端仍沿用原项目运行方式。常见流程如下：
 
 ```bash
-# Clone the project
-git clone https://github.com/QuantumNous/new-api.git
+git clone https://github.com/y08lin4/new-api.git
 cd new-api
+git checkout feature/aff-recharge-affman
+```
 
-# Edit docker-compose.yml configuration
-nano docker-compose.yml
+使用 Docker Compose 运行时，仍按原项目配置数据库、缓存、端口和环境变量。
 
-# Start the service
+```bash
 docker-compose up -d
 ```
 
-<details>
-<summary><strong>Using Docker Commands</strong></summary>
+前端或后端本地开发命令请参考原仓库文档。本分支未改变项目的基础启动方式，只新增 AFF 相关配置、接口、数据表和页面。
 
-```bash
-# Pull the latest image
-docker pull calciumion/new-api:latest
+## 验证状态
 
-# Using SQLite (default)
-docker run --name new-api -d --restart always \
-  -p 3000:3000 \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  calciumion/new-api:latest
+本分支已完成以下验证：
 
-# Using MySQL
-docker run --name new-api -d --restart always \
-  -p 3000:3000 \
-  -e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi" \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  calciumion/new-api:latest
-```
+- `git diff --check`：通过。
+- `node scripts/sync-i18n.mjs`：通过，所有语言缺失、冗余、未翻译数量为 0。
+- 后端返佣等级规则测试文件已补充。
 
-> **💡 Tip:** `-v ./data:/data` will save data in the `data` folder of the current directory, you can also change it to an absolute path like `-v /your/custom/path:/data`
+当前本地环境限制：
 
-</details>
+- `npm run typecheck` 未完成，因为本地未安装 `tsc`。
+- `npm run build` 未完成，因为本地未安装 `rsbuild`。
+- `go test` 和 `gofmt` 未完成，因为本地未安装 Go。
 
----
+## 后续同步上游
 
-🎉 After deployment is complete, visit `http://localhost:3000` to start using!
+从 `QuantumNous/new-api` 同步更新时，请优先检查以下部分是否发生冲突或行为变化：
 
-> [!WARNING]
-> When operating this project as a public generative AI service or API resale service, users should first complete all required filing, licensing, content safety, real-name verification, log retention, tax, payment, and upstream authorization obligations.
+- 用户注册流程和 `inviter_id` 写入逻辑。
+- 充值订单成功处理路径。
+- 支付回调幂等逻辑。
+- 用户余额和邀请余额字段。
+- `/api/option/` 配置读写逻辑。
+- 默认前端钱包页、计费设置页和用户表。
+- 经典前端钱包页、设置页和用户表。
+- 多语言键名和同步脚本。
 
-📖 For more deployment methods, please refer to [Deployment Guide](https://docs.newapi.pro/en/docs/installation)
+同步后请重新对照 [`docs/affiliate-recharge-reward-diff.md`](./docs/affiliate-recharge-reward-diff.md)，确认本地 AFF 充值返佣和 AFFMan 等级逻辑仍然完整。
 
----
+## 许可说明
 
-## 📚 Documentation
-
-<div align="center">
-
-### 📖 [Official Documentation](https://docs.newapi.pro/en/docs) | [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/QuantumNous/new-api)
-
-</div>
-
-**Quick Navigation:**
-
-| Category | Link |
-|------|------|
-| 🚀 Deployment Guide | [Installation Documentation](https://docs.newapi.pro/en/docs/installation) |
-| ⚙️ Environment Configuration | [Environment Variables](https://docs.newapi.pro/en/docs/installation/config-maintenance/environment-variables) |
-| 📡 API Documentation | [API Documentation](https://docs.newapi.pro/en/docs/api) |
-| ❓ FAQ | [FAQ](https://docs.newapi.pro/en/docs/support/faq) |
-| 💬 Community Interaction | [Communication Channels](https://docs.newapi.pro/en/docs/support/community-interaction) |
-
----
-
-## ✨ Key Features
-
-> For detailed features, please refer to [Features Introduction](https://docs.newapi.pro/en/docs/guide/wiki/basic-concepts/features-introduction)
-
-### 🎨 Core Functions
-
-| Feature | Description |
-|------|------|
-| 🎨 New UI | Modern user interface design |
-| 🌍 Multi-language | Supports Simplified Chinese, Traditional Chinese, English, French, Japanese |
-| 🔄 Data Compatibility | Fully compatible with the original One API database |
-| 📈 Data Dashboard | Visual console and statistical analysis |
-| 🔒 Permission Management | Token grouping, model restrictions, user management |
-
-### 💰 Authorized Usage Accounting and Billing
-
-- ✅ Internal top-up and quota allocation for lawful authorized scenarios (EPay, Stripe)
-- ✅ Organization-level per-request, usage-based, and cache-hit cost accounting
-- ✅ Cache billing statistics for OpenAI, Azure, DeepSeek, Claude, Qwen, and supported models
-- ✅ Flexible billing policies for internal management or authorized enterprise customers
-
-### 🔐 Authorization and Security
-
-- 😈 Discord authorization login
-- 🤖 LinuxDO authorization login
-- 📱 Telegram authorization login
-- 🔑 OIDC unified authentication
-- 🔍 Key quota query usage (with [new-api-key-tool](https://github.com/Calcium-Ion/new-api-key-tool))
-
-### 🚀 Advanced Features
-
-**API Format Support:**
-- ⚡ [OpenAI Responses](https://docs.newapi.pro/en/docs/api/ai-model/chat/openai/create-response)
-- ⚡ [OpenAI Realtime API](https://docs.newapi.pro/en/docs/api/ai-model/realtime/create-realtime-session) (including Azure)
-- ⚡ [Claude Messages](https://docs.newapi.pro/en/docs/api/ai-model/chat/create-message)
-- ⚡ [Google Gemini](https://doc.newapi.pro/en/api/google-gemini-chat)
-- 🔄 [Rerank Models](https://docs.newapi.pro/en/docs/api/ai-model/rerank/create-rerank) (Cohere, Jina)
-
-**Intelligent Routing:**
-- ⚖️ Channel weighted random
-- 🔄 Automatic retry on failure
-- 🚦 User-level model rate limiting
-
-**Format Conversion:**
-- 🔄 **OpenAI Compatible ⇄ Claude Messages**
-- 🔄 **OpenAI Compatible → Google Gemini**
-- 🔄 **Google Gemini → OpenAI Compatible** - Text only, function calling not supported yet
-- 🚧 **OpenAI Compatible ⇄ OpenAI Responses** - In development
-- 🔄 **Thinking-to-content functionality**
-
-**Reasoning Effort Support:**
-
-<details>
-<summary>View detailed configuration</summary>
-
-**OpenAI series models:**
-- `o3-mini-high` - High reasoning effort
-- `o3-mini-medium` - Medium reasoning effort
-- `o3-mini-low` - Low reasoning effort
-- `gpt-5-high` - High reasoning effort
-- `gpt-5-medium` - Medium reasoning effort
-- `gpt-5-low` - Low reasoning effort
-
-**Claude thinking models:**
-- `claude-3-7-sonnet-20250219-thinking` - Enable thinking mode
-
-**Google Gemini series models:**
-- `gemini-2.5-flash-thinking` - Enable thinking mode
-- `gemini-2.5-flash-nothinking` - Disable thinking mode
-- `gemini-2.5-pro-thinking` - Enable thinking mode
-- `gemini-2.5-pro-thinking-128` - Enable thinking mode with thinking budget of 128 tokens
-- You can also append `-low`, `-medium`, or `-high` to any Gemini model name to request the corresponding reasoning effort (no extra thinking-budget suffix needed).
-
-</details>
-
----
-
-## 🤖 Model Support
-
-> For details, please refer to [API Documentation - Gateway Interface](https://docs.newapi.pro/en/docs/api)
-
-| Model Type | Description | Documentation |
-|---------|------|------|
-| 🤖 OpenAI-Compatible | OpenAI compatible models | [Documentation](https://docs.newapi.pro/en/docs/api/ai-model/chat/openai/createchatcompletion) |
-| 🤖 OpenAI Responses | OpenAI Responses format | [Documentation](https://docs.newapi.pro/en/docs/api/ai-model/chat/openai/createresponse) |
-| 🎨 Midjourney-Proxy | [Midjourney-Proxy(Plus)](https://github.com/novicezk/midjourney-proxy) | [Documentation](https://doc.newapi.pro/api/midjourney-proxy-image) |
-| 🎵 Suno-API | [Suno API](https://github.com/Suno-API/Suno-API) | [Documentation](https://doc.newapi.pro/api/suno-music) |
-| 🔄 Rerank | Cohere, Jina | [Documentation](https://docs.newapi.pro/en/docs/api/ai-model/rerank/creatererank) |
-| 💬 Claude | Messages format | [Documentation](https://docs.newapi.pro/en/docs/api/ai-model/chat/createmessage) |
-| 🌐 Gemini | Google Gemini format | [Documentation](https://docs.newapi.pro/en/docs/api/ai-model/chat/gemini/geminirelayv1beta) |
-| 🔧 Dify | ChatFlow mode | - |
-| 🎯 Custom upstream | Supports configuring legally authorized upstream endpoints | - |
-
-### 📡 Supported Interfaces
-
-<details>
-<summary>View complete interface list</summary>
-
-- [Chat Interface (Chat Completions)](https://docs.newapi.pro/en/docs/api/ai-model/chat/openai/createchatcompletion)
-- [Response Interface (Responses)](https://docs.newapi.pro/en/docs/api/ai-model/chat/openai/createresponse)
-- [Image Interface (Image)](https://docs.newapi.pro/en/docs/api/ai-model/images/openai/post-v1-images-generations)
-- [Audio Interface (Audio)](https://docs.newapi.pro/en/docs/api/ai-model/audio/openai/create-transcription)
-- [Video Interface (Video)](https://docs.newapi.pro/en/docs/api/ai-model/audio/openai/createspeech)
-- [Embedding Interface (Embeddings)](https://docs.newapi.pro/en/docs/api/ai-model/embeddings/createembedding)
-- [Rerank Interface (Rerank)](https://docs.newapi.pro/en/docs/api/ai-model/rerank/creatererank)
-- [Realtime Conversation (Realtime)](https://docs.newapi.pro/en/docs/api/ai-model/realtime/createrealtimesession)
-- [Claude Chat](https://docs.newapi.pro/en/docs/api/ai-model/chat/createmessage)
-- [Google Gemini Chat](https://docs.newapi.pro/en/docs/api/ai-model/chat/gemini/geminirelayv1beta)
-
-</details>
-
----
-
-## 🚢 Deployment
-
-> [!TIP]
-> **Latest Docker image:** `calciumion/new-api:latest`
-
-### 📋 Deployment Requirements
-
-| Component | Requirement |
-|------|------|
-| **Local database** | SQLite (Docker must mount `/data` directory)|
-| **Remote database** | MySQL ≥ 5.7.8 or PostgreSQL ≥ 9.6 |
-| **Container engine** | Docker / Docker Compose |
-
-### ⚙️ Environment Variable Configuration
-
-<details>
-<summary>Common environment variable configuration</summary>
-
-| Variable Name | Description | Default Value |
-|--------|------|--------|
-| `SESSION_SECRET` | Session secret (required for multi-machine deployment) | - |
-| `CRYPTO_SECRET` | Encryption secret (required for Redis) | - |
-| `SQL_DSN` | Database connection string | - |
-| `REDIS_CONN_STRING` | Redis connection string | - |
-| `STREAMING_TIMEOUT` | Streaming timeout (seconds) | `300` |
-| `STREAM_SCANNER_MAX_BUFFER_MB` | Max per-line buffer (MB) for the stream scanner; increase when upstream sends huge image/base64 payloads | `64` |
-| `MAX_REQUEST_BODY_MB` | Max request body size (MB, counted **after decompression**; prevents huge requests/zip bombs from exhausting memory). Exceeding it returns `413` | `32` |
-| `AZURE_DEFAULT_API_VERSION` | Azure API version | `2025-04-01-preview` |
-| `ERROR_LOG_ENABLED` | Error log switch | `false` |
-| `PYROSCOPE_URL` | Pyroscope server address | - |
-| `PYROSCOPE_APP_NAME` | Pyroscope application name | `new-api` |
-| `PYROSCOPE_BASIC_AUTH_USER` | Pyroscope basic auth user | - |
-| `PYROSCOPE_BASIC_AUTH_PASSWORD` | Pyroscope basic auth password | - |
-| `PYROSCOPE_MUTEX_RATE` | Pyroscope mutex sampling rate | `5` |
-| `PYROSCOPE_BLOCK_RATE` | Pyroscope block sampling rate | `5` |
-| `HOSTNAME` | Hostname tag for Pyroscope | `new-api` |
-
-📖 **Complete configuration:** [Environment Variables Documentation](https://docs.newapi.pro/en/docs/installation/config-maintenance/environment-variables)
-
-</details>
-
-### 🔧 Deployment Methods
-
-<details>
-<summary><strong>Method 1: Docker Compose (Recommended)</strong></summary>
-
-```bash
-# Clone the project
-git clone https://github.com/QuantumNous/new-api.git
-cd new-api
-
-# Edit configuration
-nano docker-compose.yml
-
-# Start service
-docker-compose up -d
-```
-
-</details>
-
-<details>
-<summary><strong>Method 2: Docker Commands</strong></summary>
-
-**Using SQLite:**
-```bash
-docker run --name new-api -d --restart always \
-  -p 3000:3000 \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  calciumion/new-api:latest
-```
-
-**Using MySQL:**
-```bash
-docker run --name new-api -d --restart always \
-  -p 3000:3000 \
-  -e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi" \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  calciumion/new-api:latest
-```
-
-> **💡 Path explanation:**
-> - `./data:/data` - Relative path, data saved in the data folder of the current directory
-> - You can also use absolute path, e.g.: `/your/custom/path:/data`
-
-</details>
-
-<details>
-<summary><strong>Method 3: BaoTa Panel</strong></summary>
-
-1. Install BaoTa Panel (≥ 9.2.0 version)
-2. Search for **New-API** in the application store
-3. One-click installation
-
-📖 [Tutorial with images](./docs/BT.md)
-
-</details>
-
-### ⚠️ Multi-machine Deployment Considerations
-
-> [!WARNING]
-> - **Must set** `SESSION_SECRET` - Otherwise login status inconsistent
-> - **Shared Redis must set** `CRYPTO_SECRET` - Otherwise data cannot be decrypted
-
-### 🔄 Channel Retry and Cache
-
-**Retry configuration:** `Settings → Operation Settings → General Settings → Failure Retry Count`
-
-**Cache configuration:**
-- `REDIS_CONN_STRING`: Redis cache (recommended)
-- `MEMORY_CACHE_ENABLED`: Memory cache
-
----
-
-## 🔗 Related Projects
-
-### Upstream Projects
-
-| Project | Description |
-|------|------|
-| [One API](https://github.com/songquanpeng/one-api) | Original project base |
-| [Midjourney-Proxy](https://github.com/novicezk/midjourney-proxy) | Midjourney interface support |
-
-### Supporting Tools
-
-| Project | Description |
-|------|------|
-| [new-api-key-tool](https://github.com/Calcium-Ion/new-api-key-tool) | Key quota query tool |
-| [new-api-horizon](https://github.com/Calcium-Ion/new-api-horizon) | New API high-performance optimized version |
-
----
-
-## 💬 Help Support
-
-### 📖 Documentation Resources
-
-| Resource | Link |
-|------|------|
-| 📘 FAQ | [FAQ](https://docs.newapi.pro/en/docs/support/faq) |
-| 💬 Community Interaction | [Communication Channels](https://docs.newapi.pro/en/docs/support/community-interaction) |
-| 🐛 Issue Feedback | [Issue Feedback](https://docs.newapi.pro/en/docs/support/feedback-issues) |
-| 📚 Complete Documentation | [Official Documentation](https://docs.newapi.pro/en/docs) |
-
-### 🤝 Contribution Guide
-
-Welcome all forms of contribution!
-
-- 🐛 Report Bugs
-- 💡 Propose New Features
-- 📝 Improve Documentation
-- 🔧 Submit Code
-
----
-
-## 📜 License
-
-This project is licensed under the [GNU Affero General Public License v3.0 (AGPLv3)](./LICENSE).
-
-Additional terms under AGPLv3 Section 7 apply. Modified versions must preserve
-the author attribution notice `Frontend design and development by New API
-contributors.` in the appropriate legal notices and in any prominent about,
-legal, footer, or attribution location presented by the user interface.
-
-Modified versions that present a user interface must also preserve a visible
-link to the original project: <https://github.com/QuantumNous/new-api>.
-
-This is an open-source project developed based on [One API](https://github.com/songquanpeng/one-api) (MIT License).
-
-If your organization's policies do not permit the use of AGPLv3-licensed software, or if you wish to avoid the open-source obligations of AGPLv3, please contact us at: [support@quantumnous.com](mailto:support@quantumnous.com)
-
----
-
-## 🌟 Star History
-
-<div align="center">
-
-[![Star History Chart](https://api.star-history.com/svg?repos=Calcium-Ion/new-api&type=Date)](https://star-history.com/#Calcium-Ion/new-api&Date)
-
-</div>
-
----
-
-<div align="center">
-
-### 💖 Thank you for using New API
-
-If this project is helpful to you, welcome to give us a ⭐️ Star！
-
-**[Official Documentation](https://docs.newapi.pro/en/docs)** • **[Issue Feedback](https://github.com/Calcium-Ion/new-api/issues)** • **[Latest Release](https://github.com/Calcium-Ion/new-api/releases)**
-
-<sub>Built with ❤️ by QuantumNous</sub>
-
-</div>
+本项目基于原仓库 `QuantumNous/new-api` 继续修改，许可协议沿用原项目。使用、分发和二次开发时，请遵守原项目许可证和相关法律法规。
