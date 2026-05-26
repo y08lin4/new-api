@@ -18,18 +18,22 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { Share2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { formatQuota } from '@/lib/format'
+import { formatPercent, formatQuota } from '@/lib/format'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CopyButton } from '@/components/copy-button'
-import type { UserWalletData } from '../types'
+import type { AffiliatePolicy, UserWalletData } from '../types'
 
 interface AffiliateRewardsCardProps {
   user: UserWalletData | null
   affiliateLink: string
   onTransfer: () => void
+  onOpenRewards: () => void
+  policy?: AffiliatePolicy
   complianceConfirmed?: boolean
   loading?: boolean
 }
@@ -38,6 +42,8 @@ export function AffiliateRewardsCard({
   user,
   affiliateLink,
   onTransfer,
+  onOpenRewards,
+  policy,
   complianceConfirmed = true,
   loading,
 }: AffiliateRewardsCardProps) {
@@ -58,10 +64,14 @@ export function AffiliateRewardsCard({
   }
 
   const hasRewards = (user?.aff_quota ?? 0) > 0
+  const currentLevel = policy?.current_level
+  const nextLevel = policy?.next_level
+  const inviteProgress = Math.round((policy?.invite_progress ?? 0) * 100)
+  const rewardProgress = Math.round((policy?.reward_progress ?? 0) * 100)
 
   return (
     <Card className='bg-muted/20 py-0'>
-      <CardContent className='grid gap-3 p-3 sm:gap-4 sm:p-4 lg:grid-cols-[minmax(200px,1fr)_minmax(180px,0.65fr)_minmax(280px,1fr)] lg:items-center'>
+      <CardContent className='grid gap-3 p-3 sm:gap-4 sm:p-4 lg:grid-cols-[minmax(220px,1fr)_minmax(220px,0.75fr)_minmax(300px,1fr)] lg:items-center'>
         <div className='flex min-w-0 items-center gap-2.5'>
           <div className='bg-background flex size-8 shrink-0 items-center justify-center rounded-lg border'>
             <Share2 className='text-muted-foreground size-4' />
@@ -70,11 +80,16 @@ export function AffiliateRewardsCard({
             <h3 className='truncate text-sm font-semibold'>
               {t('Referral Program')}
             </h3>
-            <p className='text-muted-foreground line-clamp-1 text-xs'>
-              {t(
-                'Earn rewards when your referrals add funds. Transfer accumulated rewards to your balance anytime.'
+            <div className='mt-1 flex flex-wrap items-center gap-1.5'>
+              <Badge variant='secondary'>
+                {currentLevel?.name || t('AFFMan Lv.1')}
+              </Badge>
+              {policy?.enabled ? (
+                <Badge variant='outline'>{t('Top-up rewards enabled')}</Badge>
+              ) : (
+                <Badge variant='outline'>{t('Top-up rewards disabled')}</Badge>
               )}
-            </p>
+            </div>
           </div>
         </div>
 
@@ -95,31 +110,101 @@ export function AffiliateRewardsCard({
           ))}
         </div>
 
-        <div className='flex items-center gap-2'>
-          <Input
-            value={affiliateLink}
-            readOnly
-            className='border-muted bg-background/70 h-9 min-w-0 flex-1 font-mono text-xs'
-          />
-          <CopyButton
-            value={affiliateLink}
-            variant='outline'
-            className='bg-background size-9 shrink-0'
-            iconClassName='size-4'
-            tooltip={t('Copy referral link')}
-            aria-label={t('Copy referral link')}
-          />
-          {hasRewards && (
+        <div className='flex min-w-0 flex-col gap-2'>
+          <div className='flex items-center gap-2'>
+            <Input
+              value={affiliateLink}
+              readOnly
+              className='border-muted bg-background/70 h-9 min-w-0 flex-1 font-mono text-xs'
+            />
+            <CopyButton
+              value={affiliateLink}
+              variant='outline'
+              className='bg-background size-9 shrink-0'
+              iconClassName='size-4'
+              tooltip={t('Copy referral link')}
+              aria-label={t('Copy referral link')}
+            />
+          </div>
+          <div className='flex flex-wrap items-center gap-2'>
             <Button
-              onClick={onTransfer}
-              disabled={!complianceConfirmed}
+              onClick={onOpenRewards}
+              variant='outline'
               className='h-9 shrink-0 px-3'
               size='sm'
             >
-              {t('Transfer to Balance')}
+              {t('Reward Details')}
             </Button>
+            {hasRewards && (
+              <Button
+                onClick={onTransfer}
+                disabled={!complianceConfirmed}
+                className='h-9 shrink-0 px-3'
+                size='sm'
+              >
+                {t('Transfer to Balance')}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className='grid gap-2 border-t pt-3 lg:col-span-3'>
+          <div className='grid gap-2 text-xs sm:grid-cols-3'>
+            <div className='text-muted-foreground'>
+              {t('First commission')}:{' '}
+              <span className='text-foreground font-medium'>
+                {formatPercent(
+                  currentLevel?.inviter_first_commission_percent ?? 0
+                )}
+              </span>
+            </div>
+            <div className='text-muted-foreground'>
+              {t('Lifetime commission')}:{' '}
+              <span className='text-foreground font-medium'>
+                {currentLevel?.lifetime_commission_enabled
+                  ? formatPercent(
+                      currentLevel?.lifetime_commission_percent ?? 0
+                    )
+                  : t('Disabled')}
+              </span>
+            </div>
+            <div className='text-muted-foreground'>
+              {t('Invitee first top-up bonus')}:{' '}
+              <span className='text-foreground font-medium'>
+                {formatPercent(
+                  currentLevel?.invitee_first_topup_bonus_percent ?? 0
+                )}
+              </span>
+            </div>
+          </div>
+          {nextLevel ? (
+            <div className='grid gap-2 sm:grid-cols-2'>
+              <div className='min-w-0'>
+                <div className='mb-1 flex justify-between text-xs'>
+                  <span className='text-muted-foreground'>
+                    {t('Effective invites to next level')}
+                  </span>
+                  <span className='font-medium'>{inviteProgress}%</span>
+                </div>
+                <Progress value={inviteProgress} />
+              </div>
+              <div className='min-w-0'>
+                <div className='mb-1 flex justify-between text-xs'>
+                  <span className='text-muted-foreground'>
+                    {t('Reward quota to next level')}
+                  </span>
+                  <span className='font-medium'>{rewardProgress}%</span>
+                </div>
+                <Progress value={rewardProgress} />
+              </div>
+            </div>
+          ) : (
+            <p className='text-muted-foreground text-xs'>
+              {t('You are already at the highest AFFMan level.')}
+            </p>
           )}
         </div>
+
         {!complianceConfirmed ? (
           <p className='text-muted-foreground text-xs lg:col-span-3'>
             {t(

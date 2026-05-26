@@ -29,6 +29,13 @@ const defaultBillingSettings: BillingSettings = {
   PreConsumedQuota: 0,
   QuotaForInviter: 0,
   QuotaForInvitee: 0,
+  'affiliate_setting.enabled': false,
+  'affiliate_setting.registration_reward_enabled': false,
+  'affiliate_setting.settle_to_aff_quota': true,
+  'affiliate_setting.min_reward_base_quota': 0,
+  'affiliate_setting.first_commission_window_days': 0,
+  'affiliate_setting.levels':
+    '[{"key":"level_1","name":"AFFMan Lv.1","min_effective_invites":0,"min_total_reward_quota":0,"invitee_first_topup_bonus_percent":0,"inviter_first_commission_percent":0,"lifetime_commission_enabled":false,"lifetime_commission_percent":0}]',
   TopUpLink: '',
   'general_setting.docs_link': '',
   'quota_setting.enable_free_model_pre_consume': true,

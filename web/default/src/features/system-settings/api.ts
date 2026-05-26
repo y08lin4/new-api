@@ -20,6 +20,9 @@ import { api } from '@/lib/api'
 import type {
   ConfirmPaymentComplianceResponse,
   DeleteLogsResponse,
+  AffiliatePagedResponse,
+  AffiliateReward,
+  AffiliateUserStat,
   FetchUpstreamRatiosRequest,
   SystemOptionsResponse,
   UpdateOptionRequest,
@@ -35,6 +38,44 @@ export async function getSystemOptions() {
 
 export async function updateSystemOption(request: UpdateOptionRequest) {
   const res = await api.put<UpdateOptionResponse>('/api/option/', request)
+  return res.data
+}
+
+export async function getAdminAffiliateRewards(params: {
+  p: number
+  page_size: number
+  keyword?: string
+  reward_type?: string
+  level_key?: string
+}) {
+  const query = new URLSearchParams({
+    p: String(params.p),
+    page_size: String(params.page_size),
+  })
+  if (params.keyword) query.set('keyword', params.keyword)
+  if (params.reward_type) query.set('reward_type', params.reward_type)
+  if (params.level_key) query.set('level_key', params.level_key)
+  const res = await api.get<AffiliatePagedResponse<AffiliateReward>>(
+    `/api/affiliate/rewards?${query.toString()}`
+  )
+  return res.data
+}
+
+export async function getAdminAffiliateStats(params: {
+  p: number
+  page_size: number
+  keyword?: string
+  level_key?: string
+}) {
+  const query = new URLSearchParams({
+    p: String(params.p),
+    page_size: String(params.page_size),
+  })
+  if (params.keyword) query.set('keyword', params.keyword)
+  if (params.level_key) query.set('level_key', params.level_key)
+  const res = await api.get<AffiliatePagedResponse<AffiliateUserStat>>(
+    `/api/affiliate/stats?${query.toString()}`
+  )
   return res.data
 }
 

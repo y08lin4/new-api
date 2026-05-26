@@ -39,6 +39,42 @@ export type UpdateOptionResponse = {
   message: string
 }
 
+export type AffiliateReward = {
+  id: number
+  source_type: string
+  source_id: number
+  reward_type: string
+  inviter_id: number
+  invitee_id: number
+  beneficiary_id: number
+  trade_no: string
+  base_quota: number
+  rate: number
+  reward_quota: number
+  aff_level_key: string
+  created_at: number
+}
+
+export type AffiliateUserStat = {
+  user_id: number
+  level_key: string
+  effective_invite_count: number
+  total_reward_quota: number
+  level_updated_at: number
+  updated_at: number
+}
+
+export type AffiliatePagedResponse<T> = {
+  success: boolean
+  message?: string
+  data?: {
+    items: T[]
+    total: number
+    page: number
+    page_size: number
+  }
+}
+
 export type ConfirmPaymentComplianceResponse = {
   success: boolean
   message: string
@@ -188,6 +224,12 @@ export type BillingSettings = {
   PreConsumedQuota: number
   QuotaForInviter: number
   QuotaForInvitee: number
+  'affiliate_setting.enabled': boolean
+  'affiliate_setting.registration_reward_enabled': boolean
+  'affiliate_setting.settle_to_aff_quota': boolean
+  'affiliate_setting.min_reward_base_quota': number
+  'affiliate_setting.first_commission_window_days': number
+  'affiliate_setting.levels': string
   TopUpLink: string
   'general_setting.docs_link': string
   'quota_setting.enable_free_model_pre_consume': boolean

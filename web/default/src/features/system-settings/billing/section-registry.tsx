@@ -24,6 +24,9 @@ import { PaymentSettingsSection } from '../integrations/payment-settings-section
 import { RatioSettingsCard } from '../models/ratio-settings-card'
 import type { BillingSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { AffiliateRewardsLogSection } from './affiliate-rewards-log-section'
+import { AffiliateRewardsSection } from './affiliate-rewards-section'
+import { AffiliateStatsSection } from './affiliate-stats-section'
 
 const getModelDefaults = (settings: BillingSettings) => ({
   ModelPrice: settings.ModelPrice,
@@ -74,6 +77,50 @@ const BILLING_SECTIONS = [
           (settings['payment_setting.compliance_confirmed'] ?? false) &&
           settings['payment_setting.compliance_terms_version'] === 'v1'
         }
+      />
+    ),
+  },
+  {
+    id: 'affiliate-rewards',
+    titleKey: 'Affiliate Rewards',
+    build: (settings: BillingSettings) => (
+      <AffiliateRewardsSection
+        defaultValues={{
+          enabled: settings['affiliate_setting.enabled'] ?? false,
+          registrationRewardEnabled:
+            settings['affiliate_setting.registration_reward_enabled'] ?? false,
+          settleToAffQuota:
+            settings['affiliate_setting.settle_to_aff_quota'] ?? true,
+          minRewardBaseQuota:
+            settings['affiliate_setting.min_reward_base_quota'] ?? 0,
+          firstCommissionWindowDays:
+            settings['affiliate_setting.first_commission_window_days'] ?? 0,
+          quotaForInviter: settings.QuotaForInviter,
+          quotaForInvitee: settings.QuotaForInvitee,
+          levels: settings['affiliate_setting.levels'] ?? '[]',
+        }}
+        complianceConfirmed={
+          (settings['payment_setting.compliance_confirmed'] ?? false) &&
+          settings['payment_setting.compliance_terms_version'] === 'v1'
+        }
+      />
+    ),
+  },
+  {
+    id: 'affiliate-logs',
+    titleKey: 'Affiliate Reward Logs',
+    build: (settings: BillingSettings) => (
+      <AffiliateRewardsLogSection
+        levels={settings['affiliate_setting.levels'] ?? '[]'}
+      />
+    ),
+  },
+  {
+    id: 'affman-stats',
+    titleKey: 'AFFMan Stats',
+    build: (settings: BillingSettings) => (
+      <AffiliateStatsSection
+        levels={settings['affiliate_setting.levels'] ?? '[]'}
       />
     ),
   },

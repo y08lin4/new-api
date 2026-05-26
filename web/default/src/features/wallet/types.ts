@@ -41,6 +41,8 @@ export type PaymentResponse = ApiResponse<Record<string, unknown>> & {
 export type StripePaymentResponse = ApiResponse<{ pay_link: string }>
 export type AffiliateCodeResponse = ApiResponse<string>
 export type AffiliateTransferResponse = ApiResponse
+export type AffiliateRewardsResponse = ApiResponse<AffiliateRewardsPage>
+export type AffiliateStatsResponse = ApiResponse<AffiliateStatsPayload>
 export type CreemPaymentResponse = ApiResponse<{ checkout_url: string }>
 export type WaffoPaymentResponse = ApiResponse<
   { payment_url?: string } | string
@@ -156,6 +158,68 @@ export interface TopupInfo {
   payment_compliance_confirmed?: boolean
   /** Current compliance terms version */
   payment_compliance_terms_version?: string
+  /** Affiliate reward policy for current user */
+  affiliate_policy?: AffiliatePolicy
+}
+
+export interface AffiliateLevel {
+  key: string
+  name: string
+  min_effective_invites: number
+  min_total_reward_quota: number
+  invitee_first_topup_bonus_percent: number
+  inviter_first_commission_percent: number
+  lifetime_commission_enabled: boolean
+  lifetime_commission_percent: number
+}
+
+export interface AffiliatePolicy {
+  enabled: boolean
+  registration_reward_enabled: boolean
+  current_level: AffiliateLevel
+  next_level?: AffiliateLevel
+  effective_invite_count: number
+  total_reward_quota: number
+  invite_progress: number
+  reward_progress: number
+  first_commission_window_days: number
+}
+
+export interface AffiliateReward {
+  id: number
+  source_type: 'registration' | 'topup' | string
+  source_id: number
+  reward_type: string
+  inviter_id: number
+  invitee_id: number
+  beneficiary_id: number
+  trade_no: string
+  base_quota: number
+  rate: number
+  reward_quota: number
+  aff_level_key: string
+  created_at: number
+}
+
+export interface AffiliateUserStat {
+  user_id: number
+  level_key: string
+  effective_invite_count: number
+  total_reward_quota: number
+  level_updated_at: number
+  updated_at: number
+}
+
+export interface AffiliateRewardsPage {
+  items: AffiliateReward[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface AffiliateStatsPayload {
+  stat: AffiliateUserStat
+  policy: AffiliatePolicy
 }
 
 /**

@@ -30,6 +30,8 @@ import type {
   StripePaymentResponse,
   AffiliateCodeResponse,
   AffiliateTransferResponse,
+  AffiliateRewardsResponse,
+  AffiliateStatsResponse,
   BillingHistoryResponse,
   CompleteOrderRequest,
   CreemPaymentRequest,
@@ -183,6 +185,25 @@ export async function transferAffiliateQuota(
   request: AffiliateTransferRequest
 ): Promise<AffiliateTransferResponse> {
   const res = await api.post('/api/user/aff_transfer', request)
+  return res.data
+}
+
+export async function getSelfAffiliateRewards(
+  page: number,
+  pageSize: number
+): Promise<AffiliateRewardsResponse> {
+  const params = new URLSearchParams({
+    p: page.toString(),
+    page_size: pageSize.toString(),
+  })
+  const res = await api.get(
+    `/api/user/self/affiliate/rewards?${params.toString()}`
+  )
+  return res.data
+}
+
+export async function getSelfAffiliateStats(): Promise<AffiliateStatsResponse> {
+  const res = await api.get('/api/user/self/affiliate/stats')
   return res.data
 }
 

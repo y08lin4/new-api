@@ -276,9 +276,25 @@ export function useUsersColumns(): ColumnDef<User>[] {
         const affCount = user.aff_count || 0
         const affHistoryQuota = user.aff_history_quota || 0
         const inviterId = user.inviter_id || 0
+        const affLevelKey = user.aff_level_key || 'level_1'
 
         return (
           <div className='flex items-center gap-1'>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <StatusBadge
+                    label={affLevelKey}
+                    variant='neutral'
+                    copyable={false}
+                    className='cursor-help'
+                  />
+                }
+              />
+              <TooltipContent>
+                <p className='text-xs'>{t('Current AFFMan level')}</p>
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger
                 render={
