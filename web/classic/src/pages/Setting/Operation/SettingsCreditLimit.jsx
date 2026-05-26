@@ -36,6 +36,12 @@ export default function SettingsCreditLimit(props) {
     PreConsumedQuota: '',
     QuotaForInviter: '',
     QuotaForInvitee: '',
+    'affiliate_setting.enabled': false,
+    'affiliate_setting.registration_reward_enabled': false,
+    'affiliate_setting.settle_to_aff_quota': true,
+    'affiliate_setting.min_reward_base_quota': 0,
+    'affiliate_setting.first_commission_window_days': 0,
+    'affiliate_setting.levels': '[]',
     'quota_setting.enable_free_model_pre_consume': true,
   });
   const refForm = useRef();
@@ -201,6 +207,98 @@ export default function SettingsCreditLimit(props) {
                 />
               </Col>
             </Row>
+
+            <Form.Section text={t('AFF 充值返佣')}>
+              <Row gutter={16}>
+                <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                  <Form.Switch
+                    label={t('启用充值返佣')}
+                    field={'affiliate_setting.enabled'}
+                    disabled={!complianceConfirmed}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'affiliate_setting.enabled': value,
+                      })
+                    }
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                  <Form.Switch
+                    label={t('启用注册奖励')}
+                    field={'affiliate_setting.registration_reward_enabled'}
+                    disabled={!complianceConfirmed}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'affiliate_setting.registration_reward_enabled': value,
+                      })
+                    }
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                  <Form.Switch
+                    label={t('返佣进入邀请余额')}
+                    field={'affiliate_setting.settle_to_aff_quota'}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'affiliate_setting.settle_to_aff_quota': value,
+                      })
+                    }
+                  />
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                  <Form.InputNumber
+                    label={t('最低返佣充值额度')}
+                    field={'affiliate_setting.min_reward_base_quota'}
+                    min={0}
+                    step={1}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'affiliate_setting.min_reward_base_quota': String(value),
+                      })
+                    }
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                  <Form.InputNumber
+                    label={t('首充高返窗口天数')}
+                    field={'affiliate_setting.first_commission_window_days'}
+                    min={0}
+                    step={1}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'affiliate_setting.first_commission_window_days':
+                          String(value),
+                      })
+                    }
+                  />
+                </Col>
+              </Row>
+              <Row>
+                <Col span={24}>
+                  <Form.TextArea
+                    label={t('AFFMan 等级 JSON')}
+                    field={'affiliate_setting.levels'}
+                    autosize={{ minRows: 6, maxRows: 12 }}
+                    extraText={t(
+                      '按门槛升序配置 key、name、有效邀请数、累计返佣额度和各返佣比例。',
+                    )}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'affiliate_setting.levels': value,
+                      })
+                    }
+                  />
+                </Col>
+              </Row>
+            </Form.Section>
 
             <Row>
               <Button size='default' onClick={onSubmit}>

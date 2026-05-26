@@ -184,6 +184,9 @@ const renderInviteInfo = (text, record, t) => {
   return (
     <div>
       <Space spacing={1}>
+        <Tag color='green' shape='circle' className='!text-xs'>
+          AFFMan: {record.aff_level_key || 'level_1'}
+        </Tag>
         <Tag color='white' shape='circle' className='!text-xs'>
           {t('邀请')}: {renderNumber(record.aff_count)}
         </Tag>

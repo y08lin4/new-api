@@ -39,6 +39,7 @@ import InvitationCard from './InvitationCard';
 import TransferModal from './modals/TransferModal';
 import PaymentConfirmModal from './modals/PaymentConfirmModal';
 import TopupHistoryModal from './modals/TopupHistoryModal';
+import AffiliateRewardsModal from './modals/AffiliateRewardsModal';
 
 // Reject non-navigable schemes (e.g. javascript:, data:) and relative URLs.
 // Only http / https are allowed for backend-provided redirect targets.
@@ -107,6 +108,7 @@ const TopUp = () => {
   const [affLink, setAffLink] = useState('');
   const [openTransfer, setOpenTransfer] = useState(false);
   const [transferAmount, setTransferAmount] = useState(0);
+  const [openAffiliateRewards, setOpenAffiliateRewards] = useState(false);
 
   // 账单Modal状态
   const [openHistory, setOpenHistory] = useState(false);
@@ -129,6 +131,7 @@ const TopUp = () => {
     discount: {},
     enable_redemption: true,
     payment_compliance_confirmed: true,
+    affiliate_policy: null,
   });
 
   const confirmPayMethods = [
@@ -601,6 +604,7 @@ const TopUp = () => {
         setTopupInfo({
           amount_options: data.amount_options || [],
           discount: data.discount || {},
+          affiliate_policy: data.affiliate_policy || null,
         });
 
         // 处理支付方式
@@ -687,6 +691,7 @@ const TopUp = () => {
               data.payment_compliance_confirmed !== false,
             payment_compliance_terms_version:
               data.payment_compliance_terms_version || '',
+            affiliate_policy: data.affiliate_policy || null,
           }));
 
           // 设置 Creem 产品
@@ -941,6 +946,13 @@ const TopUp = () => {
         t={t}
       />
 
+      <AffiliateRewardsModal
+        visible={openAffiliateRewards}
+        onCancel={() => setOpenAffiliateRewards(false)}
+        t={t}
+        renderQuota={renderQuota}
+      />
+
       {/* Creem 充值确认模态框 */}
       <Modal
         title={t('确定要充值 $')}
@@ -1024,6 +1036,8 @@ const TopUp = () => {
           setOpenTransfer={setOpenTransfer}
           affLink={affLink}
           handleAffLinkClick={handleAffLinkClick}
+          affiliatePolicy={topupInfo.affiliate_policy}
+          setOpenRewards={setOpenAffiliateRewards}
           complianceConfirmed={topupInfo.payment_compliance_confirmed !== false}
         />
       </div>

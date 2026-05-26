@@ -26,8 +26,18 @@ import {
   Input,
   Badge,
   Space,
+  Progress,
+  Tag,
 } from '@douyinfe/semi-ui';
-import { Copy, Users, BarChart2, TrendingUp, Gift, Zap } from 'lucide-react';
+import {
+  Copy,
+  Users,
+  BarChart2,
+  TrendingUp,
+  Gift,
+  Zap,
+  List,
+} from 'lucide-react';
 
 const { Text } = Typography;
 
@@ -38,8 +48,19 @@ const InvitationCard = ({
   setOpenTransfer,
   affLink,
   handleAffLinkClick,
+  affiliatePolicy,
+  setOpenRewards,
   complianceConfirmed = true,
 }) => {
+  const currentLevel = affiliatePolicy?.current_level;
+  const nextLevel = affiliatePolicy?.next_level;
+  const inviteProgress = Math.round(
+    (affiliatePolicy?.invite_progress || 0) * 100,
+  );
+  const rewardProgress = Math.round(
+    (affiliatePolicy?.reward_progress || 0) * 100,
+  );
+
   return (
     <Card className='!rounded-2xl shadow-sm border-0'>
       {/* 卡片头部 */}
@@ -73,25 +94,42 @@ const InvitationCard = ({
             >
               {/* 标题和按钮 */}
               <div className='relative z-10 h-full flex flex-col justify-between p-4'>
-                <div className='flex justify-between items-center'>
-                  <Text strong style={{ color: 'white', fontSize: '16px' }}>
-                    {t('收益统计')}
-                  </Text>
-                  <Button
-                    type='primary'
-                    theme='solid'
-                    size='small'
-                    disabled={
-                      !complianceConfirmed ||
-                      !userState?.user?.aff_quota ||
-                      userState?.user?.aff_quota <= 0
-                    }
-                    onClick={() => setOpenTransfer(true)}
-                    className='!rounded-lg'
-                  >
-                    <Zap size={12} className='mr-1' />
-                    {t('划转到余额')}
-                  </Button>
+                <div className='flex justify-between items-center gap-2'>
+                  <div className='flex items-center gap-2'>
+                    <Text strong style={{ color: 'white', fontSize: '16px' }}>
+                      {t('收益统计')}
+                    </Text>
+                    <Tag color='green'>
+                      {currentLevel?.name || t('AFFMan Lv.1')}
+                    </Tag>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    <Button
+                      theme='borderless'
+                      size='small'
+                      onClick={() => setOpenRewards(true)}
+                      className='!rounded-lg'
+                      style={{ color: 'white' }}
+                    >
+                      <List size={12} className='mr-1' />
+                      {t('奖励明细')}
+                    </Button>
+                    <Button
+                      type='primary'
+                      theme='solid'
+                      size='small'
+                      disabled={
+                        !complianceConfirmed ||
+                        !userState?.user?.aff_quota ||
+                        userState?.user?.aff_quota <= 0
+                      }
+                      onClick={() => setOpenTransfer(true)}
+                      className='!rounded-lg'
+                    >
+                      <Zap size={12} className='mr-1' />
+                      {t('划转到余额')}
+                    </Button>
+                  </div>
                 </div>
                 {!complianceConfirmed && (
                   <Text
@@ -179,6 +217,26 @@ const InvitationCard = ({
                         {t('邀请人数')}
                       </Text>
                     </div>
+                  </div>
+                </div>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4'>
+                  <div>
+                    <div className='flex justify-between text-xs mb-1'>
+                      <Text style={{ color: 'rgba(255,255,255,0.8)' }}>
+                        {nextLevel ? t('有效邀请进度') : t('已达最高等级')}
+                      </Text>
+                      <Text style={{ color: 'white' }}>{inviteProgress}%</Text>
+                    </div>
+                    <Progress percent={inviteProgress} showInfo={false} />
+                  </div>
+                  <div>
+                    <div className='flex justify-between text-xs mb-1'>
+                      <Text style={{ color: 'rgba(255,255,255,0.8)' }}>
+                        {nextLevel ? t('累计返佣进度') : t('已达最高等级')}
+                      </Text>
+                      <Text style={{ color: 'white' }}>{rewardProgress}%</Text>
+                    </div>
+                    <Progress percent={rewardProgress} showInfo={false} />
                   </div>
                 </div>
               </div>
