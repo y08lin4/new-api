@@ -27,6 +27,7 @@ import { createSectionRegistry } from '../utils/section-registry'
 import { AffiliateRewardsLogSection } from './affiliate-rewards-log-section'
 import { AffiliateRewardsSection } from './affiliate-rewards-section'
 import { AffiliateStatsSection } from './affiliate-stats-section'
+import { AffiliateLevelsSection } from './affiliate-levels-section'
 
 const getModelDefaults = (settings: BillingSettings) => ({
   ModelPrice: settings.ModelPrice,
@@ -97,12 +98,22 @@ const BILLING_SECTIONS = [
             settings['affiliate_setting.first_commission_window_days'] ?? 0,
           quotaForInviter: settings.QuotaForInviter,
           quotaForInvitee: settings.QuotaForInvitee,
-          levels: settings['affiliate_setting.levels'] ?? '[]',
         }}
         complianceConfirmed={
           (settings['payment_setting.compliance_confirmed'] ?? false) &&
           settings['payment_setting.compliance_terms_version'] === 'v1'
         }
+      />
+    ),
+  },
+  {
+    id: 'affman-levels',
+    titleKey: 'AFFMan Levels',
+    build: (settings: BillingSettings) => (
+      <AffiliateLevelsSection
+        defaultValues={{
+          levels: settings['affiliate_setting.levels'] ?? '[]',
+        }}
       />
     ),
   },

@@ -16,34 +16,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import {
   SettingsControlGroup,
   SettingsFormGrid,
-  SettingsFormGridItem,
   SettingsSwitchField,
 } from '../components/settings-form-layout'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
-
-type AffiliateLevelForm = {
-  key: string
-  name: string
-  min_effective_invites: number
-  min_total_reward_quota: number
-  invitee_first_topup_bonus_percent: number
-  inviter_first_commission_percent: number
-  lifetime_commission_enabled: boolean
-  lifetime_commission_percent: number
-}
 
 type AffiliateRewardsSectionProps = {
   defaultValues: {
@@ -54,65 +39,8 @@ type AffiliateRewardsSectionProps = {
     firstCommissionWindowDays: number
     quotaForInviter: number
     quotaForInvitee: number
-    levels: string
   }
   complianceConfirmed?: boolean
-}
-
-const fallbackLevels: AffiliateLevelForm[] = [
-  {
-    key: 'level_1',
-    name: 'AFFMan Lv.1',
-    min_effective_invites: 0,
-    min_total_reward_quota: 0,
-    invitee_first_topup_bonus_percent: 0,
-    inviter_first_commission_percent: 0,
-    lifetime_commission_enabled: false,
-    lifetime_commission_percent: 0,
-  },
-]
-
-function parseLevels(value: string): AffiliateLevelForm[] {
-  try {
-    const parsed = JSON.parse(value || '[]')
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : fallbackLevels
-  } catch {
-    return fallbackLevels
-  }
-}
-
-function validateLevels(levels: AffiliateLevelForm[]) {
-  const seen = new Set<string>()
-  let prevInvites = -1
-  let prevQuota = -1
-
-  for (const level of levels) {
-    const key = level.key.trim()
-    if (!key) return 'Level key cannot be empty'
-    if (seen.has(key)) return 'Level key must be unique'
-    seen.add(key)
-    if (!level.name.trim()) return 'Level name cannot be empty'
-
-    const numbers = [
-      level.min_effective_invites,
-      level.min_total_reward_quota,
-      level.invitee_first_topup_bonus_percent,
-      level.inviter_first_commission_percent,
-      level.lifetime_commission_percent,
-    ]
-    if (numbers.some((value) => !Number.isFinite(value) || value < 0)) {
-      return 'Level thresholds and percentages must be non-negative'
-    }
-    if (
-      level.min_effective_invites < prevInvites ||
-      level.min_total_reward_quota < prevQuota
-    ) {
-      return 'Levels must be sorted by thresholds ascending'
-    }
-    prevInvites = level.min_effective_invites
-    prevQuota = level.min_total_reward_quota
-  }
-  return null
 }
 
 export function AffiliateRewardsSection({
@@ -121,10 +49,6 @@ export function AffiliateRewardsSection({
 }: AffiliateRewardsSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
-  const parsedLevels = useMemo(
-    () => parseLevels(defaultValues.levels),
-    [defaultValues.levels]
-  )
   const [enabled, setEnabled] = useState(defaultValues.enabled)
   const [registrationRewardEnabled, setRegistrationRewardEnabled] = useState(
     defaultValues.registrationRewardEnabled
@@ -144,7 +68,6 @@ export function AffiliateRewardsSection({
   const [quotaForInvitee, setQuotaForInvitee] = useState(
     defaultValues.quotaForInvitee
   )
-  const [levels, setLevels] = useState<AffiliateLevelForm[]>(parsedLevels)
 
   useEffect(() => {
     setEnabled(defaultValues.enabled)
@@ -154,45 +77,9 @@ export function AffiliateRewardsSection({
     setFirstCommissionWindowDays(defaultValues.firstCommissionWindowDays)
     setQuotaForInviter(defaultValues.quotaForInviter)
     setQuotaForInvitee(defaultValues.quotaForInvitee)
-    setLevels(parsedLevels)
-  }, [defaultValues, parsedLevels])
-
-  const updateLevel = (
-    index: number,
-    key: keyof AffiliateLevelForm,
-    value: string | number | boolean
-  ) => {
-    setLevels((current) =>
-      current.map((level, levelIndex) =>
-        levelIndex === index ? { ...level, [key]: value } : level
-      )
-    )
-  }
-
-  const addLevel = () => {
-    setLevels((current) => [
-      ...current,
-      {
-        ...fallbackLevels[0],
-        key: `level_${current.length + 1}`,
-        name: `AFFMan Lv.${current.length + 1}`,
-      },
-    ])
-  }
-
-  const removeLevel = (index: number) => {
-    setLevels((current) =>
-      current.filter((_, levelIndex) => levelIndex !== index)
-    )
-  }
+  }, [defaultValues])
 
   const save = async () => {
-    const validationError = validateLevels(levels)
-    if (validationError) {
-      toast.error(t(validationError))
-      return
-    }
-
     const updates = [
       ['affiliate_setting.enabled', enabled],
       ['affiliate_setting.registration_reward_enabled', registrationRewardEnabled],
@@ -204,7 +91,6 @@ export function AffiliateRewardsSection({
       ],
       ['QuotaForInviter', quotaForInviter],
       ['QuotaForInvitee', quotaForInvitee],
-      ['affiliate_setting.levels', JSON.stringify(levels)],
     ] as const
 
     for (const [key, value] of updates) {
@@ -297,139 +183,6 @@ export function AffiliateRewardsSection({
           </div>
         ))}
       </SettingsFormGrid>
-
-      <SettingsControlGroup className='gap-3'>
-        <div className='flex items-center justify-between gap-3'>
-          <div className='min-w-0'>
-            <Label>{t('AFFMan Levels')}</Label>
-            <p className='text-muted-foreground text-xs'>
-              {t('Levels upgrade only after both thresholds are met.')}
-            </p>
-          </div>
-          <Button type='button' variant='outline' size='sm' onClick={addLevel}>
-            <Plus data-icon='inline-start' />
-            {t('Add Level')}
-          </Button>
-        </div>
-
-        <div className='flex flex-col gap-3'>
-          {levels.map((level, index) => (
-            <SettingsControlGroup key={`${level.key}-${index}`}>
-              <div className='grid gap-3 md:grid-cols-4'>
-                <Input
-                  value={level.key}
-                  onChange={(event) =>
-                    updateLevel(index, 'key', event.currentTarget.value)
-                  }
-                  placeholder='level_1'
-                />
-                <Input
-                  value={level.name}
-                  onChange={(event) =>
-                    updateLevel(index, 'name', event.currentTarget.value)
-                  }
-                  placeholder='AFFMan Lv.1'
-                />
-                <Input
-                  type='number'
-                  min={0}
-                  value={level.min_effective_invites}
-                  onChange={(event) =>
-                    updateLevel(
-                      index,
-                      'min_effective_invites',
-                      Number(event.currentTarget.value || 0)
-                    )
-                  }
-                  placeholder={t('Effective invites')}
-                />
-                <Input
-                  type='number'
-                  min={0}
-                  value={level.min_total_reward_quota}
-                  onChange={(event) =>
-                    updateLevel(
-                      index,
-                      'min_total_reward_quota',
-                      Number(event.currentTarget.value || 0)
-                    )
-                  }
-                  placeholder={t('Reward quota')}
-                />
-              </div>
-              <div className='grid gap-3 md:grid-cols-4'>
-                <Input
-                  type='number'
-                  min={0}
-                  value={level.invitee_first_topup_bonus_percent}
-                  onChange={(event) =>
-                    updateLevel(
-                      index,
-                      'invitee_first_topup_bonus_percent',
-                      Number(event.currentTarget.value || 0)
-                    )
-                  }
-                  placeholder={t('Invitee bonus %')}
-                />
-                <Input
-                  type='number'
-                  min={0}
-                  value={level.inviter_first_commission_percent}
-                  onChange={(event) =>
-                    updateLevel(
-                      index,
-                      'inviter_first_commission_percent',
-                      Number(event.currentTarget.value || 0)
-                    )
-                  }
-                  placeholder={t('First commission %')}
-                />
-                <div className='flex items-center justify-between gap-3 rounded-md border px-3'>
-                  <span className='text-sm'>{t('Lifetime enabled')}</span>
-                  <Switch
-                    checked={level.lifetime_commission_enabled}
-                    onCheckedChange={(checked) =>
-                      updateLevel(index, 'lifetime_commission_enabled', checked)
-                    }
-                  />
-                </div>
-                <div className='flex gap-2'>
-                  <Input
-                    type='number'
-                    min={0}
-                    value={level.lifetime_commission_percent}
-                    onChange={(event) =>
-                      updateLevel(
-                        index,
-                        'lifetime_commission_percent',
-                        Number(event.currentTarget.value || 0)
-                      )
-                    }
-                    placeholder={t('Lifetime %')}
-                  />
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='icon'
-                    disabled={levels.length <= 1}
-                    onClick={() => removeLevel(index)}
-                  >
-                    <Trash2 data-icon='inline-start' />
-                  </Button>
-                </div>
-              </div>
-            </SettingsControlGroup>
-          ))}
-        </div>
-      </SettingsControlGroup>
-
-      <SettingsFormGridItem span='full'>
-        <p className='text-muted-foreground text-xs'>
-          {t(
-            'Reward base uses only paid top-up quota and excludes bonuses and commissions.'
-          )}
-        </p>
-      </SettingsFormGridItem>
     </SettingsSection>
   )
 }
